@@ -1,0 +1,663 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SKF Order Tracking Dashboard</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#0b0e14;
+  --surface:#111520;
+  --surface2:#181d2a;
+  --border:#232a3a;
+  --border2:#2e3850;
+  --text:#e8ecf4;
+  --muted:#6b7a99;
+  --dim:#3a4560;
+  --blue:#4a8fff;
+  --blue-dim:#1a3060;
+  --green:#3dd68c;
+  --green-dim:#0e3a22;
+  --amber:#f5a623;
+  --amber-dim:#3a2600;
+  --red:#f05050;
+  --red-dim:#3a0f0f;
+  --teal:#2dd4c4;
+  --teal-dim:#093530;
+  --purple:#9b7aff;
+  --purple-dim:#1e1045;
+  --coral:#ff7a6b;
+  --coral-dim:#3a1208;
+  --font:'Syne',sans-serif;
+  --mono:'DM Mono',monospace;
+}
+body{background:var(--bg);color:var(--text);font-family:var(--font);min-height:100vh;overflow-x:hidden}
+
+/* ---- HEADER ---- */
+header{padding:2rem 2.5rem 1.5rem;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;gap:1rem;position:sticky;top:0;z-index:100;background:rgba(11,14,20,.92);backdrop-filter:blur(12px)}
+.logo{display:flex;align-items:center;gap:.75rem}
+.logo-mark{width:36px;height:36px;border-radius:8px;background:var(--blue);display:grid;place-items:center}
+.logo-mark svg{width:20px;height:20px;fill:white}
+h1{font-size:1.1rem;font-weight:700;letter-spacing:-.01em}
+.subtitle{font-size:.75rem;color:var(--muted);margin-top:2px}
+.header-right{display:flex;align-items:center;gap:1rem}
+.live-badge{display:flex;align-items:center;gap:.4rem;font-size:.7rem;font-family:var(--mono);color:var(--green);background:var(--green-dim);border:1px solid #1a5c3a;padding:.25rem .65rem;border-radius:999px}
+.live-dot{width:6px;height:6px;border-radius:50%;background:var(--green);animation:pulse 2s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+.last-update{font-size:.7rem;color:var(--muted);font-family:var(--mono)}
+
+/* ---- NAV TABS ---- */
+.tabs{display:flex;gap:0;border-bottom:1px solid var(--border);background:var(--surface);padding:0 2.5rem;overflow-x:auto}
+.tab{padding:.75rem 1.25rem;font-size:.8rem;font-weight:600;color:var(--muted);cursor:pointer;border-bottom:2px solid transparent;white-space:nowrap;transition:color .15s,border-color .15s;user-select:none;letter-spacing:.03em;text-transform:uppercase}
+.tab:hover{color:var(--text)}
+.tab.active{color:var(--blue);border-color:var(--blue)}
+
+/* ---- MAIN CONTENT ---- */
+main{padding:2rem 2.5rem;max-width:1600px;margin:0 auto}
+.view{display:none}.view.active{display:block}
+
+/* ---- KPI STRIP ---- */
+.kpi-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:1rem;margin-bottom:2rem}
+.kpi{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:1.2rem 1.4rem;position:relative;overflow:hidden}
+.kpi::before{content:'';position:absolute;top:0;left:0;right:0;height:2px}
+.kpi.blue::before{background:var(--blue)}
+.kpi.green::before{background:var(--green)}
+.kpi.amber::before{background:var(--amber)}
+.kpi.teal::before{background:var(--teal)}
+.kpi.purple::before{background:var(--purple)}
+.kpi-label{font-size:.68rem;font-weight:600;letter-spacing:.07em;text-transform:uppercase;color:var(--muted);margin-bottom:.5rem}
+.kpi-val{font-size:2rem;font-weight:800;line-height:1;font-family:var(--mono)}
+.kpi.blue .kpi-val{color:var(--blue)}
+.kpi.green .kpi-val{color:var(--green)}
+.kpi.amber .kpi-val{color:var(--amber)}
+.kpi.teal .kpi-val{color:var(--teal)}
+.kpi.purple .kpi-val{color:var(--purple)}
+.kpi-sub{font-size:.72rem;color:var(--muted);margin-top:.4rem}
+
+/* ---- GRID LAYOUTS ---- */
+.grid-2{display:grid;grid-template-columns:1fr 1fr;gap:1.5rem;margin-bottom:1.5rem}
+.grid-3{display:grid;grid-template-columns:2fr 1fr 1fr;gap:1.5rem;margin-bottom:1.5rem}
+@media(max-width:900px){.grid-2,.grid-3{grid-template-columns:1fr}}
+
+/* ---- PANELS ---- */
+.panel{background:var(--surface);border:1px solid var(--border);border-radius:12px;overflow:hidden}
+.panel-head{padding:1.1rem 1.4rem;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between}
+.panel-title{font-size:.8rem;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+.panel-body{padding:1.2rem 1.4rem}
+.chart-wrap{position:relative;width:100%}
+
+/* ---- TABLE ---- */
+.tbl-wrap{overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:.8rem}
+th{text-align:left;padding:.6rem .9rem;font-size:.65rem;font-weight:600;letter-spacing:.07em;text-transform:uppercase;color:var(--muted);border-bottom:1px solid var(--border)}
+td{padding:.65rem .9rem;border-bottom:1px solid var(--border);color:var(--text);font-family:var(--mono);font-size:.78rem;vertical-align:middle}
+tr:last-child td{border-bottom:none}
+tr:hover td{background:var(--surface2)}
+.tbl-empty{text-align:center;padding:2rem;color:var(--muted);font-size:.8rem}
+
+/* ---- BADGES ---- */
+.badge{display:inline-flex;align-items:center;gap:.3rem;padding:.2rem .55rem;border-radius:4px;font-size:.68rem;font-weight:600;letter-spacing:.04em;white-space:nowrap}
+.badge.collected{background:var(--green-dim);color:var(--green);border:1px solid #1a5c3a}
+.badge.rfc{background:#0e2e3a;color:var(--teal);border:1px solid #0d4040}
+.badge.shs{background:var(--blue-dim);color:var(--blue);border:1px solid #1a3a70}
+.badge.bok{background:var(--amber-dim);color:var(--amber);border:1px solid #5c3800}
+.badge.rbk{background:#2a1030;color:var(--purple);border:1px solid #3a1a60}
+.badge.rpi{background:var(--red-dim);color:var(--red);border:1px solid #5c1a1a}
+.badge.all{background:#2a2020;color:var(--coral);border:1px solid #4a2010}
+.badge.ent{background:#1a1a2a;color:#aaa;border:1px solid #333}
+
+/* ---- PROGRESS BAR ---- */
+.pbar-wrap{display:flex;align-items:center;gap:.6rem}
+.pbar{flex:1;height:5px;border-radius:3px;background:var(--border);overflow:hidden;min-width:60px}
+.pbar-fill{height:100%;border-radius:3px;transition:width .6s ease}
+.pbar-pct{font-size:.7rem;color:var(--muted);font-family:var(--mono);min-width:30px;text-align:right}
+
+/* ---- FILTER BAR ---- */
+.filter-bar{display:flex;gap:.5rem;align-items:center;margin-bottom:1.5rem;flex-wrap:wrap}
+.filter-label{font-size:.72rem;color:var(--muted);font-weight:600;letter-spacing:.05em;text-transform:uppercase}
+.filter-btn{padding:.3rem .8rem;border-radius:6px;border:1px solid var(--border2);background:transparent;color:var(--muted);font-size:.72rem;font-family:var(--font);font-weight:600;cursor:pointer;transition:all .15s}
+.filter-btn:hover{border-color:var(--blue);color:var(--text)}
+.filter-btn.on{background:var(--blue-dim);border-color:var(--blue);color:var(--blue)}
+
+/* ---- SEARCH ---- */
+.search-row{display:flex;gap:.75rem;margin-bottom:1.25rem;align-items:center}
+.search-input{background:var(--surface2);border:1px solid var(--border2);border-radius:8px;padding:.45rem .9rem;color:var(--text);font-size:.82rem;font-family:var(--mono);outline:none;width:260px;transition:border-color .15s}
+.search-input:focus{border-color:var(--blue)}
+.search-input::placeholder{color:var(--dim)}
+.count-badge{font-size:.72rem;color:var(--muted);font-family:var(--mono)}
+
+/* ---- STATUS LEGEND ---- */
+.legend{display:flex;flex-wrap:wrap;gap:.5rem .9rem;margin-bottom:1.2rem}
+.leg-item{display:flex;align-items:center;gap:.35rem;font-size:.7rem;color:var(--muted)}
+.leg-dot{width:8px;height:8px;border-radius:2px}
+
+/* ---- SECTION TITLE ---- */
+.section-title{font-size:.75rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin-bottom:1rem;padding-bottom:.5rem;border-bottom:1px solid var(--border)}
+
+/* ---- DONUT LABEL ---- */
+.donut-center{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);text-align:center;pointer-events:none}
+.donut-center .big{font-size:1.6rem;font-weight:800;font-family:var(--mono)}
+.donut-center .sm{font-size:.65rem;color:var(--muted);text-transform:uppercase;letter-spacing:.07em}
+
+/* ---- WH BARS ---- */
+.wh-row{display:flex;align-items:center;gap:.7rem;padding:.45rem 0;border-bottom:1px solid var(--border)}
+.wh-row:last-child{border-bottom:none}
+.wh-name{font-family:var(--mono);font-size:.78rem;min-width:50px;color:var(--text)}
+.wh-pbar{flex:1;height:6px;border-radius:3px;background:var(--border)}
+.wh-fill{height:100%;border-radius:3px;background:var(--blue)}
+.wh-count{font-size:.72rem;color:var(--muted);font-family:var(--mono);min-width:28px;text-align:right}
+
+/* ---- ANIM ---- */
+@keyframes fadeUp{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+.view.active .kpi,.view.active .panel{animation:fadeUp .3s ease both}
+.view.active .kpi:nth-child(2){animation-delay:.04s}
+.view.active .kpi:nth-child(3){animation-delay:.08s}
+.view.active .kpi:nth-child(4){animation-delay:.12s}
+.view.active .kpi:nth-child(5){animation-delay:.16s}
+
+#login-screen{position:fixed;inset:0;background:#0b0e14;z-index:9999;display:flex;align-items:center;justify-content:center}
+.login-box{background:#111520;border:1px solid #232a3a;border-radius:16px;padding:2.5rem 2rem;width:320px;text-align:center}
+.login-logo{width:48px;height:48px;border-radius:12px;background:#4a8fff;display:flex;align-items:center;justify-content:center;margin:0 auto 1.2rem}
+.login-logo svg{width:26px;height:26px;fill:white}
+.login-title{font-size:1.1rem;font-weight:700;margin-bottom:.3rem}
+.login-sub{font-size:.75rem;color:#6b7a99;margin-bottom:1.5rem}
+.login-input{width:100%;background:#181d2a;border:1px solid #2e3850;border-radius:8px;padding:.6rem 1rem;color:#e8ecf4;font-size:.9rem;font-family:'DM Mono',monospace;outline:none;text-align:center;letter-spacing:.1em;margin-bottom:.8rem;transition:border-color .15s}
+.login-input:focus{border-color:#4a8fff}
+.login-btn{width:100%;background:#4a8fff;border:none;border-radius:8px;padding:.65rem;color:white;font-size:.85rem;font-weight:700;font-family:'Syne',sans-serif;cursor:pointer;letter-spacing:.04em;transition:opacity .15s}
+.login-btn:hover{opacity:.85}
+.login-err{font-size:.75rem;color:#f05050;margin-top:.5rem;min-height:1.1rem}
+#main-content{display:none}
+</style>
+</head>
+<body>
+
+
+<div id="login-screen">
+  <div class="login-box">
+    <div class="login-logo"><svg viewBox="0 0 20 20"><path d="M3 4h14v2H3V4zm0 5h14v2H3V9zm0 5h9v2H3v-2z"/></svg></div>
+    <div class="login-title">Order Tracking Dashboard</div>
+    <div class="login-sub">SKF &mdash; TATA &mdash; VULCAN</div>
+    <input class="login-input" id="pwd-input" type="password" placeholder="Password" autocomplete="off">
+    <button class="login-btn" onclick="checkLogin()">Enter</button>
+    <div class="login-err" id="login-err"></div>
+  </div>
+</div>
+<div id="main-content">
+<header>
+  <div class="logo">
+    <div class="logo-mark">
+      <svg viewBox="0 0 20 20"><path d="M3 4h14v2H3V4zm0 5h14v2H3V9zm0 5h9v2H3v-2z"/></svg>
+    </div>
+    <div>
+      <div style="font-size:.65rem;color:var(--muted);font-family:var(--mono);letter-spacing:.05em;margin-bottom:1px">VULCAN / TATA / SKF</div>
+      <h1>Order Tracking Dashboard</h1>
+    </div>
+  </div>
+  <div class="header-right">
+    <div class="live-badge"><span class="live-dot"></span>LIVE</div>
+    <div class="last-update" id="ts"></div>
+  </div>
+</header>
+
+<div class="tabs">
+  <div class="tab active" data-view="overview">Overview</div>
+  <div class="tab" data-view="skf">SKF Orders</div>
+  <div class="tab" data-view="tata">TATA Orders</div>
+  <div class="tab" data-view="vulcan">Vulcan POs</div>
+  <div class="tab" data-view="invoices">Invoices</div>
+  <div class="tab" data-view="lines">All Lines</div>
+</div>
+
+<main>
+
+<!-- ========== OVERVIEW ========== -->
+<div class="view active" id="view-overview">
+  <div class="kpi-grid">
+    <div class="kpi blue"><div class="kpi-label">Total Lines</div><div class="kpi-val" id="kpi-lines"></div><div class="kpi-sub">order lines</div></div>
+    <div class="kpi amber"><div class="kpi-label">Qty Ordered</div><div class="kpi-val" id="kpi-qo"></div><div class="kpi-sub">units</div></div>
+    <div class="kpi green"><div class="kpi-label">Qty Shipped</div><div class="kpi-val" id="kpi-qs"></div><div class="kpi-sub" id="kpi-qs-pct"></div></div>
+    <div class="kpi teal"><div class="kpi-label">Invoices</div><div class="kpi-val" id="kpi-inv"></div><div class="kpi-sub">unique invoices</div></div>
+    <div class="kpi purple"><div class="kpi-label">Delivered</div><div class="kpi-val" id="kpi-del"></div><div class="kpi-sub">to customer</div></div>
+  </div>
+
+  <div class="grid-3">
+    <div class="panel">
+      <div class="panel-head"><span class="panel-title">Monthly Qty — Ordered vs Shipped</span></div>
+      <div class="panel-body">
+        <div class="chart-wrap" style="height:220px"><canvas id="ch-monthly" role="img" aria-label="Monthly ordered vs shipped quantities"></canvas></div>
+      </div>
+    </div>
+    <div class="panel">
+      <div class="panel-head"><span class="panel-title">Status breakdown</span></div>
+      <div class="panel-body" style="display:flex;flex-direction:column;gap:1rem">
+        <div style="position:relative;height:180px;display:flex;align-items:center;justify-content:center">
+          <div class="chart-wrap" style="height:180px;width:180px"><canvas id="ch-status" role="img" aria-label="Status breakdown donut chart"></canvas></div>
+          <div class="donut-center"><div class="big" id="donut-pct"></div><div class="sm">shipped</div></div>
+        </div>
+        <div class="legend" id="legend-status"></div>
+      </div>
+    </div>
+    <div class="panel">
+      <div class="panel-head"><span class="panel-title">Warehouse distribution</span></div>
+      <div class="panel-body" id="wh-bars"></div>
+    </div>
+  </div>
+
+  <div class="grid-2">
+    <div class="panel">
+      <div class="panel-head"><span class="panel-title">SKF Orders — shipment progress</span></div>
+      <div class="panel-body">
+        <div class="tbl-wrap">
+          <table id="tbl-skf-ov">
+            <thead><tr><th>SKF Order</th><th>Lines</th><th>Qty Ord.</th><th>Progress</th><th>Status</th></tr></thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+    <div class="panel">
+      <div class="panel-head"><span class="panel-title">TATA Orders — shipment progress</span></div>
+      <div class="panel-body">
+        <div class="tbl-wrap">
+          <table id="tbl-tata-ov">
+            <thead><tr><th>TATA Order</th><th>Lines</th><th>Qty Ord.</th><th>Progress</th><th>Status</th></tr></thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ========== SKF ORDERS ========== -->
+<div class="view" id="view-skf">
+  <div class="filter-bar">
+    <span class="filter-label">Status:</span>
+    <button class="filter-btn on" data-filter-skf="all">All</button>
+    <button class="filter-btn" data-filter-skf="COLLECTED">Collected</button>
+    <button class="filter-btn" data-filter-skf="SHS">SHS</button>
+    <button class="filter-btn" data-filter-skf="BOK">BOK</button>
+    <button class="filter-btn" data-filter-skf="RBK">RBK</button>
+    <button class="filter-btn" data-filter-skf="RPI">RPI</button>
+    <button class="filter-btn" data-filter-skf="ENT">ENT</button>
+    <button class="filter-btn" data-filter-skf="ALL">ALL</button>
+    <button class="filter-btn" data-filter-skf="READY FOR COLLECTION">RFC</button>
+    <span class="count-badge" id="skf-count"></span>
+  </div>
+  <div class="panel">
+    <div class="panel-body">
+      <div class="tbl-wrap">
+        <table id="tbl-skf">
+          <thead><tr><th>SKF Order</th><th>TATA Order</th><th>Vulcan PO</th><th>Warehouse</th><th>Order Date</th><th>Lines</th><th>Qty Ordered</th><th>Qty Shipped</th><th>Shipment %</th><th>Invoices</th><th>Status</th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ========== TATA ORDERS ========== -->
+<div class="view" id="view-tata">
+  <div class="filter-bar">
+    <span class="filter-label">Status:</span>
+    <button class="filter-btn on" data-filter-tata="all">All</button>
+    <button class="filter-btn" data-filter-tata="COLLECTED">Collected</button>
+    <button class="filter-btn" data-filter-tata="SHS">SHS</button>
+    <button class="filter-btn" data-filter-tata="BOK">BOK</button>
+    <button class="filter-btn" data-filter-tata="RBK">RBK</button>
+    <button class="filter-btn" data-filter-tata="RPI">RPI</button>
+    <button class="filter-btn" data-filter-tata="READY FOR COLLECTION">RFC</button>
+    <span class="count-badge" id="tata-count"></span>
+  </div>
+  <div class="chart-wrap" style="height:260px;margin-bottom:1.5rem"><canvas id="ch-tata" role="img" aria-label="TATA order quantities bar chart"></canvas></div>
+  <div class="panel">
+    <div class="panel-body">
+      <div class="tbl-wrap">
+        <table id="tbl-tata">
+          <thead><tr><th>TATA Order</th><th>SKF Orders</th><th>Lines</th><th>Qty Ordered</th><th>Qty Shipped</th><th>Pending</th><th>Shipment %</th><th>Status</th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ========== VULCAN POs ========== -->
+<div class="view" id="view-vulcan">
+  <div class="filter-bar">
+    <span class="filter-label">Status:</span>
+    <button class="filter-btn on" data-filter-vul="all">All</button>
+    <button class="filter-btn" data-filter-vul="COLLECTED">Collected</button>
+    <button class="filter-btn" data-filter-vul="SHS">SHS</button>
+    <button class="filter-btn" data-filter-vul="BOK">BOK</button>
+    <button class="filter-btn" data-filter-vul="RPI">RPI</button>
+    <button class="filter-btn" data-filter-vul="READY FOR COLLECTION">RFC</button>
+    <button class="filter-btn" data-filter-vul="ALL">ALL</button>
+    <span class="count-badge" id="vul-count"></span>
+  </div>
+  <div class="chart-wrap" style="height:260px;margin-bottom:1.5rem"><canvas id="ch-vulcan" role="img" aria-label="Vulcan PO quantities bar chart"></canvas></div>
+  <div class="panel">
+    <div class="panel-body">
+      <div class="tbl-wrap">
+        <table id="tbl-vulcan">
+          <thead><tr><th>Vulcan PO</th><th>SKF Orders</th><th>Lines</th><th>Qty Ordered</th><th>Qty Shipped</th><th>Pending</th><th>Shipment %</th><th>Status</th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ========== INVOICES ========== -->
+<div class="view" id="view-invoices">
+  <div class="chart-wrap" style="height:240px;margin-bottom:1.5rem"><canvas id="ch-inv" role="img" aria-label="Invoice line count bar chart"></canvas></div>
+  <div class="panel">
+    <div class="panel-body">
+      <div class="tbl-wrap">
+        <table id="tbl-inv">
+          <thead><tr><th>Invoice No.</th><th>SKF Order(s)</th><th>TATA Order(s)</th><th>Warehouse(s)</th><th>Lines</th><th>Qty Shipped</th><th>Status</th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ========== ALL LINES ========== -->
+<div class="view" id="view-lines">
+  <div class="search-row">
+    <input class="search-input" id="line-search" type="text" placeholder="Search SKF / TATA / Vulcan / Invoice...">
+    <div class="filter-bar" style="margin:0">
+      <button class="filter-btn on" data-filter-line="all">All</button>
+      <button class="filter-btn" data-filter-line="COLLECTED">Collected</button>
+      <button class="filter-btn" data-filter-line="SHS">SHS</button>
+      <button class="filter-btn" data-filter-line="BOK">BOK</button>
+      <button class="filter-btn" data-filter-line="RBK">RBK</button>
+      <button class="filter-btn" data-filter-line="RPI">RPI</button>
+      <button class="filter-btn" data-filter-line="ENT">ENT</button>
+      <button class="filter-btn" data-filter-line="ALL">ALL</button>
+      <button class="filter-btn" data-filter-line="READY FOR COLLECTION">RFC</button>
+    </div>
+    <span class="count-badge" id="line-count"></span>
+  </div>
+  <div class="panel">
+    <div class="panel-body">
+      <div class="tbl-wrap">
+        <table id="tbl-lines">
+          <thead><tr><th>SKF Order</th><th>TATA Order</th><th>Vulcan PO</th><th>Warehouse</th><th>Order Date</th><th>Qty Ord.</th><th>Qty Shp.</th><th>Pending</th><th>Invoice No.</th><th>Status</th><th>Delivered</th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+</main>
+
+<script>
+const D = {"rows":[{"skf":"26Z0000099","tata":"252911949","vulcan":"4300034814","date":"2026-02","wh":"EMWH","qo":4,"qs":4,"qp":0,"inv":"12568","st":"COLLECTED","del":0},{"skf":"26Z0000099","tata":"252911949","vulcan":"4300034814","date":"2026-02","wh":"EMWH","qo":2,"qs":2,"qp":0,"inv":"12611","st":"COLLECTED","del":0},{"skf":"26Z0000099","tata":"252911949","vulcan":"4300034814","date":"2026-02","wh":"EMWH","qo":2,"qs":2,"qp":0,"inv":"12660","st":"COLLECTED","del":0},{"skf":"26Z0000097","tata":"252911950","vulcan":"","date":"2026-02","wh":"EMWH","qo":2,"qs":2,"qp":0,"inv":"12612","st":"COLLECTED","del":0},{"skf":"25Z0002759","tata":"252911760","vulcan":"4300033496","date":"2025-12","wh":"EMWH","qo":1,"qs":1,"qp":0,"inv":"12403","st":"COLLECTED","del":1},{"skf":"25Z0002759","tata":"252911760","vulcan":"4300033496","date":"2025-12","wh":"EMWH","qo":3,"qs":3,"qp":0,"inv":"12452","st":"COLLECTED","del":1},{"skf":"26Z0000402","tata":"262910345","vulcan":"","date":"2026-05","wh":"EMWH","qo":1,"qs":0,"qp":1,"inv":"","st":"BOK","del":0},{"skf":"26Z0000402","tata":"262910345","vulcan":"","date":"2026-05","wh":"EMWH","qo":5,"qs":0,"qp":5,"inv":"","st":"BOK","del":0},{"skf":"26Z0000402","tata":"262910345","vulcan":"","date":"2026-05","wh":"EMWH","qo":2,"qs":0,"qp":2,"inv":"","st":"BOK","del":0},{"skf":"26Z0000402","tata":"262910345","vulcan":"","date":"2026-05","wh":"EMWH","qo":1,"qs":0,"qp":1,"inv":"","st":"BOK","del":0},{"skf":"26Z0000382","tata":"262910320","vulcan":"4300037223","date":"2026-05","wh":"EMWH","qo":3,"qs":0,"qp":3,"inv":"","st":"BOK","del":0},{"skf":"26Z0000383","tata":"262910319","vulcan":"4300037815","date":"2026-05","wh":"EMWH","qo":2,"qs":0,"qp":2,"inv":"","st":"BOK","del":0},{"skf":"26Z0000383","tata":"262910319","vulcan":"4300037815","date":"2026-05","wh":"EMWH","qo":1,"qs":0,"qp":1,"inv":"","st":"BOK","del":0},{"skf":"26Z0000383","tata":"262910319","vulcan":"4300037815","date":"2026-05","wh":"EMWH","qo":7,"qs":0,"qp":7,"inv":"","st":"BOK","del":0},{"skf":"26Z0000383","tata":"262910319","vulcan":"4300037815","date":"2026-05","wh":"EMWH","qo":12,"qs":0,"qp":12,"inv":"","st":"BOK","del":0},{"skf":"26Z0000279","tata":"252912134","vulcan":"4300034374","date":"2026-04","wh":"EMWH","qo":5,"qs":0,"qp":5,"inv":"","st":"BOK","del":0},{"skf":"26Z0000279","tata":"252912134","vulcan":"4300034374","date":"2026-04","wh":"EMWH","qo":4,"qs":0,"qp":4,"inv":"","st":"BOK","del":0},{"skf":"26Z0000279","tata":"252912134","vulcan":"4300034374","date":"2026-04","wh":"EMWH","qo":3,"qs":0,"qp":3,"inv":"","st":"BOK","del":0},{"skf":"26Z0000279","tata":"252912134","vulcan":"4300034374","date":"2026-04","wh":"EMWH","qo":2,"qs":0,"qp":2,"inv":"","st":"BOK","del":0},{"skf":"26Z0000280","tata":"262910001","vulcan":"","date":"2026-04","wh":"EMWH","qo":7,"qs":0,"qp":7,"inv":"","st":"BOK","del":0},{"skf":"26Z0000280","tata":"262910001","vulcan":"","date":"2026-04","wh":"EMWH","qo":13,"qs":0,"qp":13,"inv":"","st":"BOK","del":0},{"skf":"26Z0000240","tata":"252912296","vulcan":"4300036353","date":"2026-03","wh":"EMWH","qo":4,"qs":0,"qp":4,"inv":"","st":"BOK","del":0},{"skf":"26Z0000428","tata":"262910449","vulcan":"4300038759","date":"2026-05","wh":"QZSS","qo":2,"qs":0,"qp":2,"inv":"","st":"ALL","del":0},{"skf":"26Z0000428","tata":"262910449","vulcan":"4300038759","date":"2026-05","wh":"QZSS","qo":2,"qs":0,"qp":2,"inv":"","st":"ALL","del":0},{"skf":"26Z0000428","tata":"262910449","vulcan":"4300038759","date":"2026-05","wh":"QZSS","qo":1,"qs":0,"qp":1,"inv":"","st":"ALL","del":0},{"skf":"26Z0000428","tata":"262910449","vulcan":"4300038759","date":"2026-05","wh":"QZSS","qo":1,"qs":0,"qp":1,"inv":"","st":"ALL","del":0},{"skf":"26Z0000428","tata":"262910449","vulcan":"","date":"2026-05","wh":"QZSS","qo":3,"qs":0,"qp":3,"inv":"","st":"ALL","del":0},{"skf":"26Z0000428","tata":"262910449","vulcan":"4300038759","date":"2026-05","wh":"QZSS","qo":1,"qs":0,"qp":1,"inv":"","st":"ALL","del":0},{"skf":"26Z0000126","tata":"252911981","vulcan":"4300035325","date":"2026-02","wh":"EMWH","qo":30,"qs":30,"qp":0,"inv":"12545","st":"COLLECTED","del":0},{"skf":"26Z0000126","tata":"252911981","vulcan":"4300035325","date":"2026-02","wh":"EMWH","qo":1,"qs":1,"qp":0,"inv":"12632","st":"COLLECTED","del":0},{"skf":"26Z0000126","tata":"252911981","vulcan":"","date":"2026-02","wh":"EMWH","qo":5,"qs":5,"qp":0,"inv":"12723","st":"COLLECTED","del":0},{"skf":"26Z0000126","tata":"252911981","vulcan":"","date":"2026-02","wh":"EMWH","qo":5,"qs":5,"qp":0,"inv":"12723","st":"COLLECTED","del":0},{"skf":"26Z0000126","tata":"252911981","vulcan":"","date":"2026-02","wh":"EMWH","qo":5,"qs":5,"qp":0,"inv":"12723","st":"COLLECTED","del":0},{"skf":"26Z0000126","tata":"252911981","vulcan":"","date":"2026-02","wh":"EMWH","qo":5,"qs":5,"qp":0,"inv":"12723","st":"COLLECTED","del":0},{"skf":"26Z0000126","tata":"252911981","vulcan":"","date":"2026-02","wh":"EMWH","qo":10,"qs":10,"qp":0,"inv":"12723","st":"COLLECTED","del":0},{"skf":"26Z0000099","tata":"252911949","vulcan":"4300034814","date":"2026-02","wh":"EMWH","qo":4,"qs":4,"qp":0,"inv":"12568","st":"COLLECTED","del":0},{"skf":"26Z0000126","tata":"252911981","vulcan":"4300035325","date":"2026-02","wh":"EMWH","qo":1,"qs":1,"qp":0,"inv":"12545","st":"COLLECTED","del":0},{"skf":"26Z0000126","tata":"252911981","vulcan":"4300035325","date":"2026-02","wh":"EMWH","qo":5,"qs":5,"qp":0,"inv":"12545","st":"COLLECTED","del":0},{"skf":"26Z0000126","tata":"252911981","vulcan":"","date":"2026-02","wh":"EMWH","qo":5,"qs":5,"qp":0,"inv":"12632","st":"COLLECTED","del":0},{"skf":"26Z0000126","tata":"252911981","vulcan":"4300035325","date":"2026-02","wh":"EMWH","qo":2,"qs":2,"qp":0,"inv":"12545","st":"COLLECTED","del":0},{"skf":"26Z0000126","tata":"252911981","vulcan":"4300035325","date":"2026-02","wh":"EMWH","qo":1,"qs":1,"qp":0,"inv":"12545","st":"COLLECTED","del":0},{"skf":"26Z0000126","tata":"252911981","vulcan":"4300035325","date":"2026-02","wh":"EMWH","qo":1,"qs":1,"qp":0,"inv":"12545","st":"COLLECTED","del":0},{"skf":"26Z0000126","tata":"252911981","vulcan":"4300035325","date":"2026-02","wh":"EMWH","qo":1,"qs":1,"qp":0,"inv":"12545","st":"COLLECTED","del":0},{"skf":"26Z0000174","tata":"252912114","vulcan":"4300035558","date":"2026-02","wh":"EMWH","qo":4,"qs":4,"qp":0,"inv":"12622","st":"COLLECTED","del":0},{"skf":"26Z0000174","tata":"252912114","vulcan":"4300035558","date":"2026-02","wh":"EMWH","qo":4,"qs":4,"qp":0,"inv":"12622","st":"COLLECTED","del":0},{"skf":"26Z0000174","tata":"252912114","vulcan":"4300035558","date":"2026-02","wh":"EMWH","qo":3,"qs":3,"qp":0,"inv":"12622","st":"COLLECTED","del":0},{"skf":"26Z0000174","tata":"252912114","vulcan":"4300035558","date":"2026-02","wh":"EMWH","qo":1,"qs":1,"qp":0,"inv":"12661","st":"COLLECTED","del":0},{"skf":"26Z0000174","tata":"252912114","vulcan":"4300035558","date":"2026-02","wh":"QZSS","qo":2,"qs":2,"qp":0,"inv":"12431","st":"COLLECTED","del":1},{"skf":"26Z0000126","tata":"252911981","vulcan":"4300035325","date":"2026-02","wh":"EMWH","qo":1,"qs":1,"qp":0,"inv":"12545","st":"COLLECTED","del":0},{"skf":"26Z0000126","tata":"252911981","vulcan":"4300035325","date":"2026-02","wh":"EMWH","qo":1,"qs":1,"qp":0,"inv":"12545","st":"COLLECTED","del":0},{"skf":"26Z0000126","tata":"252911981","vulcan":"4300035325","date":"2026-02","wh":"EMWH","qo":1,"qs":1,"qp":0,"inv":"12545","st":"COLLECTED","del":0},{"skf":"26Z0000279","tata":"252912134","vulcan":"4300034374","date":"2026-04","wh":"EMWH","qo":6,"qs":6,"qp":0,"inv":"12755","st":"COLLECTED","del":0},{"skf":"26Z0000279","tata":"252912134","vulcan":"4300034374","date":"2026-04","wh":"EMWH","qo":2,"qs":2,"qp":0,"inv":"12755","st":"COLLECTED","del":0},{"skf":"26Z0000279","tata":"252912134","vulcan":"4300034374","date":"2026-04","wh":"EMWH","qo":1,"qs":1,"qp":0,"inv":"12755","st":"COLLECTED","del":0},{"skf":"26Z0000279","tata":"252912134","vulcan":"4300034374","date":"2026-04","wh":"EMWH","qo":19,"qs":19,"qp":0,"inv":"12755","st":"COLLECTED","del":0},{"skf":"26Z0000279","tata":"252912134","vulcan":"4300034374","date":"2026-04","wh":"EMWH","qo":1,"qs":1,"qp":0,"inv":"12755","st":"COLLECTED","del":0},{"skf":"26Z0000240","tata":"252912296","vulcan":"4300036353","date":"2026-03","wh":"EMWH","qo":4,"qs":4,"qp":0,"inv":"","st":"SHS","del":0},{"skf":"26Z0000402","tata":"262910345","vulcan":"","date":"2026-05","wh":"EMWH","qo":1,"qs":0,"qp":1,"inv":"","st":"RBK","del":0},{"skf":"26Z0000402","tata":"262910345","vulcan":"","date":"2026-05","wh":"EMWH","qo":3,"qs":0,"qp":3,"inv":"","st":"RBK","del":0},{"skf":"26Z0000402","tata":"262910345","vulcan":"","date":"2026-05","wh":"EMWH","qo":6,"qs":0,"qp":6,"inv":"","st":"RBK","del":0},{"skf":"26Z0000402","tata":"262910345","vulcan":"","date":"2026-05","wh":"EMWH","qo":16,"qs":0,"qp":16,"inv":"","st":"RBK","del":0},{"skf":"26Z0000381","tata":"262910321","vulcan":"4300037783","date":"2026-05","wh":"EMWH","qo":1,"qs":0,"qp":1,"inv":"","st":"RBK","del":0},{"skf":"26Z0000381","tata":"262910321","vulcan":"4300037783","date":"2026-05","wh":"EMWH","qo":1,"qs":0,"qp":1,"inv":"","st":"RBK","del":0},{"skf":"26Z0000383","tata":"262910319","vulcan":"4300037815","date":"2026-05","wh":"EMWH","qo":60,"qs":0,"qp":60,"inv":"","st":"RBK","del":0},{"skf":"26Z0000383","tata":"262910319","vulcan":"4300037815","date":"2026-05","wh":"EMWH","qo":22,"qs":0,"qp":22,"inv":"","st":"RBK","del":0},{"skf":"26Z0000422","tata":"262910469","vulcan":"4300037947","date":"2026-05","wh":"QZSS","qo":3,"qs":0,"qp":3,"inv":"","st":"RPI","del":0},{"skf":"26Z0000402","tata":"262910345","vulcan":"","date":"2026-05","wh":"EMWH","qo":6,"qs":0,"qp":6,"inv":"","st":"RPI","del":0},{"skf":"26Z0000402","tata":"262910345","vulcan":"","date":"2026-05","wh":"EMWH","qo":6,"qs":0,"qp":6,"inv":"","st":"RPI","del":0},{"skf":"26Z0000402","tata":"262910345","vulcan":"","date":"2026-05","wh":"EMWH","qo":4,"qs":0,"qp":4,"inv":"","st":"RPI","del":0},{"skf":"26Z0000402","tata":"262910345","vulcan":"","date":"2026-05","wh":"EMWH","qo":6,"qs":0,"qp":6,"inv":"","st":"RPI","del":0},{"skf":"26Z0000402","tata":"262910345","vulcan":"","date":"2026-05","wh":"EMWH","qo":4,"qs":0,"qp":4,"inv":"","st":"RPI","del":0},{"skf":"26Z0000402","tata":"262910345","vulcan":"","date":"2026-05","wh":"EMWH","qo":2,"qs":0,"qp":2,"inv":"","st":"RPI","del":0},{"skf":"26Z0000428","tata":"262910449","vulcan":"4300038759","date":"2026-05","wh":"EMWH","qo":50,"qs":0,"qp":50,"inv":"","st":"ENT","del":0},{"skf":"26Z0000428","tata":"262910449","vulcan":"4300038759","date":"2026-05","wh":"EMWH","qo":1,"qs":0,"qp":1,"inv":"","st":"ENT","del":0},{"skf":"26Z0000428","tata":"262910449","vulcan":"4300038759","date":"2026-05","wh":"EMWH","qo":4,"qs":0,"qp":4,"inv":"","st":"ENT","del":0},{"skf":"26Z0000428","tata":"262910449","vulcan":"4300038759","date":"2026-05","wh":"EMWH","qo":2,"qs":0,"qp":2,"inv":"","st":"ENT","del":0},{"skf":"26Z0000410","tata":"262910450","vulcan":"4300038547","date":"2026-05","wh":"EMWH","qo":130,"qs":0,"qp":130,"inv":"","st":"ENT","del":0},{"skf":"26Z0000382","tata":"262910320","vulcan":"4300037223","date":"2026-05","wh":"EMWH","qo":27,"qs":0,"qp":27,"inv":"","st":"ENT","del":0},{"skf":"26Z0000240","tata":"252912296","vulcan":"4300036353","date":"2026-03","wh":"QZSS","qo":4,"qs":0,"qp":4,"inv":"","st":"ENT","del":0},{"skf":"26Z0000126","tata":"252911981","vulcan":"4300035325","date":"2026-02","wh":"EMWH","qo":0,"qs":0,"qp":0,"inv":"","st":"ENT","del":0},{"skf":"26Z0000386","tata":"262910319A","vulcan":"4300037815","date":"2026-05","wh":"EMWH","qo":20,"qs":20,"qp":0,"inv":"12675","st":"COLLECTED","del":0},{"skf":"26Z0000304","tata":"262910137","vulcan":"","date":"2026-04","wh":"QZSS","qo":4,"qs":4,"qp":0,"inv":"12562","st":"COLLECTED","del":1},{"skf":"26Z0000291","tata":"262910021","vulcan":"4300036955","date":"2026-04","wh":"EMWH","qo":4,"qs":4,"qp":0,"inv":"12720","st":"READY FOR COLLECTION","del":0},{"skf":"26Z0000291","tata":"262910021","vulcan":"4300036955","date":"2026-04","wh":"EMWH","qo":10,"qs":10,"qp":0,"inv":"12720","st":"READY FOR COLLECTION","del":0},{"skf":"26Z0000291","tata":"262910021","vulcan":"4300036955","date":"2026-04","wh":"EMWH","qo":10,"qs":10,"qp":0,"inv":"12720","st":"READY FOR COLLECTION","del":0},{"skf":"26Z0000291","tata":"262910021","vulcan":"4300036955","date":"2026-04","wh":"TBEW","qo":10,"qs":10,"qp":0,"inv":"12720","st":"READY FOR COLLECTION","del":0},{"skf":"26Z0000291","tata":"262910021","vulcan":"4300036955","date":"2026-04","wh":"TBEW","qo":4,"qs":4,"qp":0,"inv":"12720","st":"READY FOR COLLECTION","del":0},{"skf":"26Z0000291","tata":"262910021","vulcan":"4300036955","date":"2026-04","wh":"EMWH","qo":18,"qs":18,"qp":0,"inv":"12720","st":"READY FOR COLLECTION","del":0},{"skf":"26Z0000291","tata":"262910021","vulcan":"4300036955","date":"2026-04","wh":"EMWH","qo":4,"qs":4,"qp":0,"inv":"12720","st":"READY FOR COLLECTION","del":0},{"skf":"26Z0000291","tata":"262910021","vulcan":"4300036955","date":"2026-04","wh":"EMWH","qo":10,"qs":10,"qp":0,"inv":"12720","st":"READY FOR COLLECTION","del":0},{"skf":"26Z0000280","tata":"262910001","vulcan":"","date":"2026-04","wh":"EMWH","qo":33,"qs":33,"qp":0,"inv":"12610","st":"COLLECTED","del":0},{"skf":"26Z0000280","tata":"262910001","vulcan":"","date":"2026-04","wh":"EMWH","qo":5,"qs":5,"qp":0,"inv":"12679","st":"COLLECTED","del":0},{"skf":"26Z0000280","tata":"262910001","vulcan":"","date":"2026-04","wh":"EMWH","qo":20,"qs":20,"qp":0,"inv":"12679","st":"COLLECTED","del":0},{"skf":"26Z0000240","tata":"252912296","vulcan":"4300036353","date":"2026-03","wh":"EMWH","qo":4,"qs":4,"qp":0,"inv":"12643","st":"COLLECTED","del":0},{"skf":"26Z0000240","tata":"252912296","vulcan":"4300036353","date":"2026-03","wh":"EMWH","qo":4,"qs":4,"qp":0,"inv":"12643","st":"COLLECTED","del":0},{"skf":"26Z0000240","tata":"252912296","vulcan":"4300036353","date":"2026-03","wh":"EMWH","qo":1,"qs":1,"qp":0,"inv":"12643","st":"COLLECTED","del":0},{"skf":"26Z0000240","tata":"252912296","vulcan":"4300036353","date":"2026-03","wh":"EMWH","qo":3,"qs":3,"qp":0,"inv":"12643","st":"COLLECTED","del":0},{"skf":"26Z0000240","tata":"252912296","vulcan":"4300036353","date":"2026-03","wh":"EMWH","qo":4,"qs":4,"qp":0,"inv":"12643","st":"COLLECTED","del":0},{"skf":"26Z0000240","tata":"252912296","vulcan":"4300036353","date":"2026-03","wh":"EMWH","qo":20,"qs":20,"qp":0,"inv":"12643","st":"COLLECTED","del":0},{"skf":"26Z0000240","tata":"252912296","vulcan":"4300036353","date":"2026-03","wh":"EMWH","qo":20,"qs":20,"qp":0,"inv":"12643","st":"COLLECTED","del":0},{"skf":"26Z0000240","tata":"252912296","vulcan":"4300036353","date":"2026-03","wh":"EMWH","qo":20,"qs":20,"qp":0,"inv":"12643","st":"COLLECTED","del":0},{"skf":"26Z0000240","tata":"252912296","vulcan":"4300036353","date":"2026-03","wh":"EMWH","qo":20,"qs":20,"qp":0,"inv":"12643","st":"COLLECTED","del":0},{"skf":"26Z0000240","tata":"252912296","vulcan":"4300036353","date":"2026-03","wh":"EMWH","qo":20,"qs":20,"qp":0,"inv":"12643","st":"COLLECTED","del":0},{"skf":"26Z0000240","tata":"252912296","vulcan":"4300036353","date":"2026-03","wh":"EMWH","qo":30,"qs":30,"qp":0,"inv":"12643","st":"COLLECTED","del":0},{"skf":"26Z0000242","tata":"252912295","vulcan":"4300036415","date":"2026-03","wh":"EMWH","qo":5,"qs":5,"qp":0,"inv":"12721","st":"COLLECTED","del":0},{"skf":"26Z0000242","tata":"252912295","vulcan":"4300036415","date":"2026-03","wh":"II01","qo":10,"qs":10,"qp":0,"inv":"12721","st":"COLLECTED","del":0},{"skf":"26Z0000242","tata":"252912295","vulcan":"4300036415","date":"2026-03","wh":"EMWH","qo":20,"qs":20,"qp":0,"inv":"12721","st":"COLLECTED","del":0},{"skf":"26Z0000242","tata":"252912295","vulcan":"4300036415","date":"2026-03","wh":"EMWH","qo":4,"qs":4,"qp":0,"inv":"12721","st":"COLLECTED","del":0},{"skf":"26Z0000242","tata":"252912295","vulcan":"4300036415","date":"2026-03","wh":"EMWH","qo":2,"qs":2,"qp":0,"inv":"12721","st":"COLLECTED","del":0},{"skf":"26Z0000242","tata":"252912295","vulcan":"4300036415","date":"2026-03","wh":"EMWH","qo":5,"qs":5,"qp":0,"inv":"12721","st":"COLLECTED","del":0},{"skf":"26Z0000242","tata":"252912295","vulcan":"4300036415","date":"2026-03","wh":"QZSS","qo":1,"qs":1,"qp":0,"inv":"12722","st":"COLLECTED","del":0},{"skf":"26Z0000170","tata":"252911949","vulcan":"4300034814","date":"2026-02","wh":"TBEW","qo":4,"qs":4,"qp":0,"inv":"12613","st":"COLLECTED","del":0},{"skf":"26Z0000174","tata":"252912114","vulcan":"4300035558","date":"2026-02","wh":"EMWH","qo":4,"qs":4,"qp":0,"inv":"12622","st":"COLLECTED","del":0},{"skf":"26Z0000381","tata":"262910321","vulcan":"4300037783","date":"2026-05","wh":"EMWH","qo":2,"qs":2,"qp":0,"inv":"","st":"SHS","del":0},{"skf":"26Z0000381","tata":"262910321","vulcan":"4300037783","date":"2026-05","wh":"TBEW","qo":6,"qs":6,"qp":0,"inv":"","st":"SHS","del":0},{"skf":"26Z0000381","tata":"262910321","vulcan":"4300037783","date":"2026-05","wh":"TBEW","qo":6,"qs":6,"qp":0,"inv":"","st":"SHS","del":0},{"skf":"26Z0000382","tata":"262910320","vulcan":"4300037223","date":"2026-05","wh":"EMWH","qo":1,"qs":1,"qp":0,"inv":"","st":"SHS","del":0},{"skf":"26Z0000382","tata":"262910320","vulcan":"4300037223","date":"2026-05","wh":"EMWH","qo":5,"qs":5,"qp":0,"inv":"","st":"SHS","del":0},{"skf":"26Z0000382","tata":"262910320","vulcan":"4300037223","date":"2026-05","wh":"EMWH","qo":8,"qs":8,"qp":0,"inv":"","st":"SHS","del":0},{"skf":"26Z0000382","tata":"262910320","vulcan":"4300037223","date":"2026-05","wh":"EMWH","qo":1,"qs":1,"qp":0,"inv":"","st":"SHS","del":0},{"skf":"26Z0000383","tata":"262910319","vulcan":"4300037815","date":"2026-05","wh":"EMWH","qo":2,"qs":2,"qp":0,"inv":"","st":"SHS","del":0},{"skf":"26Z0000383","tata":"262910319","vulcan":"4300037815","date":"2026-05","wh":"EMWH","qo":12,"qs":12,"qp":0,"inv":"","st":"SHS","del":0},{"skf":"26Z0000383","tata":"262910319","vulcan":"4300037815","date":"2026-05","wh":"TBEW","qo":6,"qs":6,"qp":0,"inv":"","st":"SHS","del":0},{"skf":"26Z0000383","tata":"262910319","vulcan":"4300037815","date":"2026-05","wh":"EMWH","qo":8,"qs":8,"qp":0,"inv":"","st":"SHS","del":0},{"skf":"26Z0000304","tata":"262910137","vulcan":"","date":"2026-04","wh":"EMWH","qo":2,"qs":2,"qp":0,"inv":"","st":"SHS","del":0},{"skf":"26Z0000291","tata":"262910021","vulcan":"4300036955","date":"2026-04","wh":"EMWH","qo":37,"qs":37,"qp":0,"inv":"","st":"SHS","del":0},{"skf":"26Z0000291","tata":"262910021","vulcan":"4300036955","date":"2026-04","wh":"EMWH","qo":33,"qs":33,"qp":0,"inv":"","st":"SHS","del":0},{"skf":"26Z0000291","tata":"262910021","vulcan":"4300036955","date":"2026-04","wh":"EMWH","qo":2,"qs":2,"qp":0,"inv":"","st":"SHS","del":0},{"skf":"26Z0000279","tata":"252912134","vulcan":"4300034374","date":"2026-04","wh":"EMWH","qo":10,"qs":10,"qp":0,"inv":"12755","st":"COLLECTED","del":0},{"skf":"26Z0000410","tata":"262910450","vulcan":"4300038547","date":"2026-05","wh":"EMWH","qo":20,"qs":20,"qp":0,"inv":"12739","st":"COLLECTED","del":0},{"skf":"26Z0000410","tata":"262910450","vulcan":"4300038547","date":"2026-05","wh":"EMWH","qo":50,"qs":50,"qp":0,"inv":"12751","st":"COLLECTED","del":0},{"skf":"26Z0000381","tata":"262910321","vulcan":"4300037783","date":"2026-05","wh":"EMWH","qo":15,"qs":15,"qp":0,"inv":"","st":"SHS","del":0},{"skf":"26Z0000381","tata":"262910321","vulcan":"4300037783","date":"2026-05","wh":"EMWH","qo":1,"qs":1,"qp":0,"inv":"","st":"SHS","del":0},{"skf":"26Z0000381","tata":"262910321","vulcan":"4300037783","date":"2026-05","wh":"EMWH","qo":10,"qs":10,"qp":0,"inv":"","st":"SHS","del":0},{"skf":"26Z0000381","tata":"262910321","vulcan":"4300037783","date":"2026-05","wh":"EMWH","qo":2,"qs":2,"qp":0,"inv":"","st":"SHS","del":0}],"status_counts":{"COLLECTED":62,"BOK":16,"ALL":6,"SHS":20,"RBK":8,"RPI":7,"ENT":8,"READY FOR COLLECTION":8},"wh_counts":{"EMWH":117,"QZSS":11,"TBEW":6,"II01":1},"months":[["2025-12",4,4],["2026-02",116,116],["2026-03",205,197],["2026-04",279,245],["2026-05",574,175]],"skf_list":[{"skf":"25Z0002759","lines":2,"qo":4,"qs":4,"st":"COLLECTED","invs":2,"whs":["EMWH"],"tatas":["252911760"],"vulcans":["4300033496"],"date":"2025-12"},{"skf":"26Z0000099","lines":4,"qo":12,"qs":12,"st":"COLLECTED","invs":3,"whs":["EMWH"],"tatas":["252911949"],"vulcans":["4300034814"],"date":"2026-02"},{"skf":"26Z0000097","lines":1,"qo":2,"qs":2,"st":"COLLECTED","invs":1,"whs":["EMWH"],"tatas":["252911950"],"vulcans":[],"date":"2026-02"},{"skf":"26Z0000126","lines":18,"qo":80,"qs":80,"st":"COLLECTED","invs":3,"whs":["EMWH"],"tatas":["252911981"],"vulcans":["4300035325"],"date":"2026-02"},{"skf":"26Z0000174","lines":6,"qo":18,"qs":18,"st":"COLLECTED","invs":3,"whs":["QZSS","EMWH"],"tatas":["252912114"],"vulcans":["4300035558"],"date":"2026-02"},{"skf":"26Z0000170","lines":1,"qo":4,"qs":4,"st":"COLLECTED","invs":1,"whs":["TBEW"],"tatas":["252911949"],"vulcans":["4300034814"],"date":"2026-02"},{"skf":"26Z0000240","lines":14,"qo":158,"qs":150,"st":"COLLECTED","invs":1,"whs":["QZSS","EMWH"],"tatas":["252912296"],"vulcans":["4300036353"],"date":"2026-03"},{"skf":"26Z0000242","lines":7,"qo":47,"qs":47,"st":"COLLECTED","invs":2,"whs":["QZSS","II01","EMWH"],"tatas":["252912295"],"vulcans":["4300036415"],"date":"2026-03"},{"skf":"26Z0000279","lines":10,"qo":53,"qs":39,"st":"COLLECTED","invs":1,"whs":["EMWH"],"tatas":["252912134"],"vulcans":["4300034374"],"date":"2026-04"},{"skf":"26Z0000280","lines":5,"qo":78,"qs":58,"st":"COLLECTED","invs":2,"whs":["EMWH"],"tatas":["262910001"],"vulcans":[],"date":"2026-04"},{"skf":"26Z0000304","lines":2,"qo":6,"qs":6,"st":"COLLECTED","invs":1,"whs":["QZSS","EMWH"],"tatas":["262910137"],"vulcans":[],"date":"2026-04"},{"skf":"26Z0000291","lines":11,"qo":142,"qs":142,"st":"READY FOR COLLECTION","invs":1,"whs":["TBEW","EMWH"],"tatas":["262910021"],"vulcans":["4300036955"],"date":"2026-04"},{"skf":"26Z0000402","lines":14,"qo":63,"qs":0,"st":"RPI","invs":0,"whs":["EMWH"],"tatas":["262910345"],"vulcans":[],"date":"2026-05"},{"skf":"26Z0000382","lines":6,"qo":45,"qs":15,"st":"SHS","invs":0,"whs":["EMWH"],"tatas":["262910320"],"vulcans":["4300037223"],"date":"2026-05"},{"skf":"26Z0000383","lines":10,"qo":132,"qs":28,"st":"BOK","invs":0,"whs":["TBEW","EMWH"],"tatas":["262910319"],"vulcans":["4300037815"],"date":"2026-05"},{"skf":"26Z0000428","lines":10,"qo":67,"qs":0,"st":"ALL","invs":0,"whs":["QZSS","EMWH"],"tatas":["262910449"],"vulcans":["4300038759"],"date":"2026-05"},{"skf":"26Z0000381","lines":9,"qo":44,"qs":42,"st":"SHS","invs":0,"whs":["TBEW","EMWH"],"tatas":["262910321"],"vulcans":["4300037783"],"date":"2026-05"},{"skf":"26Z0000422","lines":1,"qo":3,"qs":0,"st":"RPI","invs":0,"whs":["QZSS"],"tatas":["262910469"],"vulcans":["4300037947"],"date":"2026-05"},{"skf":"26Z0000410","lines":3,"qo":200,"qs":70,"st":"COLLECTED","invs":2,"whs":["EMWH"],"tatas":["262910450"],"vulcans":["4300038547"],"date":"2026-05"},{"skf":"26Z0000386","lines":1,"qo":20,"qs":20,"st":"COLLECTED","invs":1,"whs":["EMWH"],"tatas":["262910319A"],"vulcans":["4300037815"],"date":"2026-05"}],"tata_list":[{"tata":"252911760","lines":2,"qo":4,"qs":4,"st":"COLLECTED","skfs":1},{"tata":"252911949","lines":5,"qo":16,"qs":16,"st":"COLLECTED","skfs":2},{"tata":"252911950","lines":1,"qo":2,"qs":2,"st":"COLLECTED","skfs":1},{"tata":"252911981","lines":18,"qo":80,"qs":80,"st":"COLLECTED","skfs":1},{"tata":"252912114","lines":6,"qo":18,"qs":18,"st":"COLLECTED","skfs":1},{"tata":"252912134","lines":10,"qo":53,"qs":39,"st":"COLLECTED","skfs":1},{"tata":"252912295","lines":7,"qo":47,"qs":47,"st":"COLLECTED","skfs":1},{"tata":"252912296","lines":14,"qo":158,"qs":150,"st":"COLLECTED","skfs":1},{"tata":"262910001","lines":5,"qo":78,"qs":58,"st":"COLLECTED","skfs":1},{"tata":"262910021","lines":11,"qo":142,"qs":142,"st":"READY FOR COLLECTION","skfs":1},{"tata":"262910137","lines":2,"qo":6,"qs":6,"st":"COLLECTED","skfs":1},{"tata":"262910319","lines":10,"qo":132,"qs":28,"st":"BOK","skfs":1},{"tata":"262910319A","lines":1,"qo":20,"qs":20,"st":"COLLECTED","skfs":1},{"tata":"262910320","lines":6,"qo":45,"qs":15,"st":"SHS","skfs":1},{"tata":"262910321","lines":9,"qo":44,"qs":42,"st":"SHS","skfs":1},{"tata":"262910345","lines":14,"qo":63,"qs":0,"st":"RPI","skfs":1},{"tata":"262910449","lines":10,"qo":67,"qs":0,"st":"ALL","skfs":1},{"tata":"262910450","lines":3,"qo":200,"qs":70,"st":"COLLECTED","skfs":1},{"tata":"262910469","lines":1,"qo":3,"qs":0,"st":"RPI","skfs":1}],"vulcan_list":[{"vulcan":"4300033496","lines":2,"qo":4,"qs":4,"st":"COLLECTED","skfs":1},{"vulcan":"4300034374","lines":10,"qo":53,"qs":39,"st":"COLLECTED","skfs":1},{"vulcan":"4300034814","lines":5,"qo":16,"qs":16,"st":"COLLECTED","skfs":2},{"vulcan":"4300035325","lines":12,"qo":45,"qs":45,"st":"COLLECTED","skfs":1},{"vulcan":"4300035558","lines":6,"qo":18,"qs":18,"st":"COLLECTED","skfs":1},{"vulcan":"4300036353","lines":14,"qo":158,"qs":150,"st":"COLLECTED","skfs":1},{"vulcan":"4300036415","lines":7,"qo":47,"qs":47,"st":"COLLECTED","skfs":1},{"vulcan":"4300036955","lines":11,"qo":142,"qs":142,"st":"READY FOR COLLECTION","skfs":1},{"vulcan":"4300037223","lines":6,"qo":45,"qs":15,"st":"SHS","skfs":1},{"vulcan":"4300037783","lines":9,"qo":44,"qs":42,"st":"SHS","skfs":1},{"vulcan":"4300037815","lines":11,"qo":152,"qs":48,"st":"BOK","skfs":2},{"vulcan":"4300037947","lines":1,"qo":3,"qs":0,"st":"RPI","skfs":1},{"vulcan":"4300038547","lines":3,"qo":200,"qs":70,"st":"COLLECTED","skfs":1},{"vulcan":"4300038759","lines":9,"qo":64,"qs":0,"st":"ALL","skfs":1}],"total_lines":135,"total_qo":1178,"total_qs":737,"total_invoices":24,"delivered":4};
+
+const STATUS_CFG = {
+  'COLLECTED':{cls:'collected',label:'Collected',color:'#3dd68c'},
+  'READY FOR COLLECTION':{cls:'rfc',label:'RFC',color:'#2dd4c4'},
+  'SHS':{cls:'shs',label:'SHS',color:'#4a8fff'},
+  'BOK':{cls:'bok',label:'BOK',color:'#f5a623'},
+  'RBK':{cls:'rbk',label:'RBK',color:'#9b7aff'},
+  'RPI':{cls:'rpi',label:'RPI',color:'#f05050'},
+  'ALL':{cls:'all',label:'ALL',color:'#ff7a6b'},
+  'ENT':{cls:'ent',label:'ENT',color:'#888'},
+};
+
+function badge(st){const c=STATUS_CFG[st]||{cls:'ent',label:st,color:'#888'};return`<span class="badge ${c.cls}">${c.label}</span>`}
+function pbar(qs,qo){const pct=qo>0?Math.round(qs/qo*100):0;const col=pct>=100?'#3dd68c':pct>=50?'#4a8fff':'#f5a623';return`<div class="pbar-wrap"><div class="pbar"><div class="pbar-fill" style="width:${pct}%;background:${col}"></div></div><span class="pbar-pct">${pct}%</span></div>`}
+
+// KPIs
+document.getElementById('kpi-lines').textContent=D.total_lines;
+document.getElementById('kpi-qo').textContent=D.total_qo.toLocaleString();
+document.getElementById('kpi-qs').textContent=D.total_qs.toLocaleString();
+document.getElementById('kpi-qs-pct').textContent=Math.round(D.total_qs/D.total_qo*100)+'% of ordered';
+document.getElementById('kpi-inv').textContent=D.total_invoices;
+document.getElementById('kpi-del').textContent=D.delivered+' lines';
+document.getElementById('donut-pct').textContent=Math.round(D.total_qs/D.total_qo*100)+'%';
+document.getElementById('ts').textContent='Updated '+new Date().toLocaleString('en-GB',{day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'});
+
+// Monthly chart
+new Chart(document.getElementById('ch-monthly'),{
+  type:'bar',
+  data:{labels:D.months.map(m=>m[0]),datasets:[
+    {label:'Ordered',data:D.months.map(m=>m[1]),backgroundColor:'rgba(74,143,255,.25)',borderColor:'#4a8fff',borderWidth:1.5,borderRadius:3},
+    {label:'Shipped',data:D.months.map(m=>m[2]),backgroundColor:'rgba(61,214,140,.3)',borderColor:'#3dd68c',borderWidth:1.5,borderRadius:3}
+  ]},
+  options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{ticks:{color:'#6b7a99',font:{size:11}},grid:{color:'rgba(255,255,255,.04)'}},y:{ticks:{color:'#6b7a99',font:{size:11}},grid:{color:'rgba(255,255,255,.06)'}}}}
+});
+
+// Status donut
+const stKeys=Object.keys(D.status_counts);
+new Chart(document.getElementById('ch-status'),{
+  type:'doughnut',
+  data:{labels:stKeys,datasets:[{data:stKeys.map(k=>D.status_counts[k]),backgroundColor:stKeys.map(k=>(STATUS_CFG[k]||{color:'#888'}).color),borderWidth:0,hoverOffset:4}]},
+  options:{responsive:true,maintainAspectRatio:false,cutout:'68%',plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>`${c.label}: ${c.raw}`}}}}
+});
+
+// Status legend
+const legEl=document.getElementById('legend-status');
+stKeys.forEach(k=>{
+  const c=STATUS_CFG[k]||{color:'#888',label:k};
+  legEl.innerHTML+=`<span class="leg-item"><span class="leg-dot" style="background:${c.color}"></span>${c.label||k} <strong style="color:var(--text)">${D.status_counts[k]}</strong></span>`;
+});
+// Monthly legend
+const monLeg=document.createElement('div');
+monLeg.style.cssText='display:flex;gap:16px;font-size:11px;color:var(--muted);margin-top:8px';
+monLeg.innerHTML='<span style="display:flex;align-items:center;gap:4px"><span style="width:10px;height:10px;border-radius:2px;background:#4a8fff"></span>Ordered</span><span style="display:flex;align-items:center;gap:4px"><span style="width:10px;height:10px;border-radius:2px;background:#3dd68c"></span>Shipped</span>';
+document.querySelector('#view-overview .grid-3 .panel:first-child .panel-body').appendChild(monLeg);
+
+// Warehouse bars
+const whEl=document.getElementById('wh-bars');
+const maxWh=Math.max(...Object.values(D.wh_counts));
+Object.entries(D.wh_counts).forEach(([wh,cnt])=>{
+  const pct=Math.round(cnt/maxWh*100);
+  whEl.innerHTML+=`<div class="wh-row"><span class="wh-name">${wh}</span><div class="wh-pbar"><div class="wh-fill" style="width:${pct}%"></div></div><span class="wh-count">${cnt}</span></div>`;
+});
+
+// Overview SKF table
+(()=>{
+  const tbody=document.querySelector('#tbl-skf-ov tbody');
+  D.skf_list.forEach(r=>{
+    tbody.innerHTML+=`<tr><td style="color:var(--blue)">${r.skf}</td><td>${r.lines}</td><td>${r.qo}</td><td>${pbar(r.qs,r.qo)}</td><td>${badge(r.st)}</td></tr>`;
+  });
+})();
+
+// Overview TATA table
+(()=>{
+  const tbody=document.querySelector('#tbl-tata-ov tbody');
+  D.tata_list.forEach(r=>{
+    tbody.innerHTML+=`<tr><td style="color:var(--teal);font-family:var(--mono)">${r.tata}</td><td>${r.lines}</td><td>${r.qo}</td><td>${pbar(r.qs,r.qo)}</td><td>${badge(r.st)}</td></tr>`;
+  });
+})();
+
+// ---- SKF VIEW ----
+let skfFilter='all';
+function renderSKF(){
+  const data=skfFilter==='all'?D.skf_list:D.skf_list.filter(r=>r.st===skfFilter);
+  document.getElementById('skf-count').textContent=data.length+' orders';
+  const tbody=document.querySelector('#tbl-skf tbody');
+  tbody.innerHTML='';
+  if(!data.length){tbody.innerHTML='<tr><td colspan="11" class="tbl-empty">No orders match this filter</td></tr>';return}
+  data.forEach(r=>{
+    tbody.innerHTML+=`<tr>
+      <td style="color:var(--blue);font-family:var(--mono)">${r.skf}</td>
+      <td style="font-family:var(--mono);font-size:.72rem">${r.tatas.join(', ')||'—'}</td>
+      <td style="font-family:var(--mono);font-size:.72rem">${r.vulcans.join(', ')||'—'}</td>
+      <td>${r.whs.join(', ')}</td>
+      <td>${r.date}</td>
+      <td>${r.lines}</td>
+      <td>${r.qo}</td>
+      <td>${r.qs}</td>
+      <td>${pbar(r.qs,r.qo)}</td>
+      <td style="text-align:center">${r.invs||'—'}</td>
+      <td>${badge(r.st)}</td>
+    </tr>`;
+  });
+}
+document.querySelectorAll('[data-filter-skf]').forEach(btn=>{
+  btn.addEventListener('click',()=>{
+    document.querySelectorAll('[data-filter-skf]').forEach(b=>b.classList.remove('on'));
+    btn.classList.add('on');skfFilter=btn.dataset.filterSkf;renderSKF();
+  });
+});
+renderSKF();
+
+// ---- TATA VIEW ----
+let tataFilter='all';
+const tataCh=new Chart(document.getElementById('ch-tata'),{
+  type:'bar',
+  data:{labels:D.tata_list.map(r=>r.tata),datasets:[
+    {label:'Ordered',data:D.tata_list.map(r=>r.qo),backgroundColor:'rgba(74,143,255,.3)',borderColor:'#4a8fff',borderWidth:1.5,borderRadius:3},
+    {label:'Shipped',data:D.tata_list.map(r=>r.qs),backgroundColor:'rgba(61,214,140,.35)',borderColor:'#3dd68c',borderWidth:1.5,borderRadius:3}
+  ]},
+  options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{ticks:{color:'#6b7a99',font:{size:10},maxRotation:45,autoSkip:false},grid:{color:'rgba(255,255,255,.04)'}},y:{ticks:{color:'#6b7a99',font:{size:11}},grid:{color:'rgba(255,255,255,.06)'}}}}
+});
+function renderTATA(){
+  const data=tataFilter==='all'?D.tata_list:D.tata_list.filter(r=>r.st===tataFilter);
+  document.getElementById('tata-count').textContent=data.length+' orders';
+  const tbody=document.querySelector('#tbl-tata tbody');
+  tbody.innerHTML='';
+  data.forEach(r=>{
+    const pend=r.qo-r.qs;
+    tbody.innerHTML+=`<tr><td style="color:var(--teal);font-family:var(--mono)">${r.tata}</td><td>${r.skfs}</td><td>${r.lines}</td><td>${r.qo}</td><td>${r.qs}</td><td>${pend>0?'<span style="color:var(--amber)">'+pend+'</span>':pend}</td><td>${pbar(r.qs,r.qo)}</td><td>${badge(r.st)}</td></tr>`;
+  });
+}
+document.querySelectorAll('[data-filter-tata]').forEach(btn=>{
+  btn.addEventListener('click',()=>{
+    document.querySelectorAll('[data-filter-tata]').forEach(b=>b.classList.remove('on'));
+    btn.classList.add('on');tataFilter=btn.dataset.filterTata;renderTATA();
+  });
+});
+renderTATA();
+
+// ---- VULCAN VIEW ----
+let vulFilter='all';
+const vulCh=new Chart(document.getElementById('ch-vulcan'),{
+  type:'bar',
+  data:{labels:D.vulcan_list.map(r=>r.vulcan),datasets:[
+    {label:'Ordered',data:D.vulcan_list.map(r=>r.qo),backgroundColor:'rgba(155,122,255,.3)',borderColor:'#9b7aff',borderWidth:1.5,borderRadius:3},
+    {label:'Shipped',data:D.vulcan_list.map(r=>r.qs),backgroundColor:'rgba(61,214,140,.35)',borderColor:'#3dd68c',borderWidth:1.5,borderRadius:3}
+  ]},
+  options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{ticks:{color:'#6b7a99',font:{size:10},maxRotation:45,autoSkip:false},grid:{color:'rgba(255,255,255,.04)'}},y:{ticks:{color:'#6b7a99',font:{size:11}},grid:{color:'rgba(255,255,255,.06)'}}}}
+});
+function renderVulcan(){
+  const data=vulFilter==='all'?D.vulcan_list:D.vulcan_list.filter(r=>r.st===vulFilter);
+  document.getElementById('vul-count').textContent=data.length+' POs';
+  const tbody=document.querySelector('#tbl-vulcan tbody');
+  tbody.innerHTML='';
+  data.forEach(r=>{
+    const pend=r.qo-r.qs;
+    tbody.innerHTML+=`<tr><td style="color:var(--purple);font-family:var(--mono)">${r.vulcan}</td><td>${r.skfs}</td><td>${r.lines}</td><td>${r.qo}</td><td>${r.qs}</td><td>${pend>0?'<span style="color:var(--amber)">'+pend+'</span>':pend}</td><td>${pbar(r.qs,r.qo)}</td><td>${badge(r.st)}</td></tr>`;
+  });
+}
+document.querySelectorAll('[data-filter-vul]').forEach(btn=>{
+  btn.addEventListener('click',()=>{
+    document.querySelectorAll('[data-filter-vul]').forEach(b=>b.classList.remove('on'));
+    btn.classList.add('on');vulFilter=btn.dataset.filterVul;renderVulcan();
+  });
+});
+renderVulcan();
+
+// ---- INVOICES VIEW ----
+(()=>{
+  const invMap={};
+  D.rows.forEach(r=>{
+    if(!r.inv) return;
+    if(!invMap[r.inv]) invMap[r.inv]={skfs:new Set(),tatas:new Set(),whs:new Set(),lines:0,qs:0,sts:[]};
+    invMap[r.inv].skfs.add(r.skf);invMap[r.inv].tatas.add(r.tata);invMap[r.inv].whs.add(r.wh);
+    invMap[r.inv].lines++;invMap[r.inv].qs+=r.qs;invMap[r.inv].sts.push(r.st);
+  });
+  const invList=Object.entries(invMap).sort((a,b)=>a[0].localeCompare(b[0]));
+  new Chart(document.getElementById('ch-inv'),{
+    type:'bar',
+    data:{labels:invList.map(e=>e[0]),datasets:[{label:'Lines',data:invList.map(e=>e[1].lines),backgroundColor:'rgba(245,166,35,.35)',borderColor:'#f5a623',borderWidth:1.5,borderRadius:3}]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{ticks:{color:'#6b7a99',font:{size:10},maxRotation:45,autoSkip:false},grid:{color:'rgba(255,255,255,.04)'}},y:{ticks:{color:'#6b7a99',font:{size:11}},grid:{color:'rgba(255,255,255,.06)'}}}}
+  });
+  const tbody=document.querySelector('#tbl-inv tbody');
+  invList.forEach(([inv,d])=>{
+    const dom=d.sts.reduce((acc,s)=>{acc[s]=(acc[s]||0)+1;return acc},{});
+    const topSt=Object.entries(dom).sort((a,b)=>b[1]-a[1])[0][0];
+    tbody.innerHTML+=`<tr>
+      <td style="color:var(--amber);font-family:var(--mono);font-weight:600">${inv}</td>
+      <td style="font-size:.72rem;font-family:var(--mono)">${[...d.skfs].join(', ')}</td>
+      <td style="font-size:.72rem;font-family:var(--mono)">${[...d.tatas].join(', ')}</td>
+      <td>${[...d.whs].join(', ')}</td>
+      <td>${d.lines}</td>
+      <td>${d.qs}</td>
+      <td>${badge(topSt)}</td>
+    </tr>`;
+  });
+})();
+
+// ---- ALL LINES VIEW ----
+let lineFilter='all',lineSearch='';
+function renderLines(){
+  let data=D.rows;
+  if(lineFilter!=='all') data=data.filter(r=>r.st===lineFilter);
+  if(lineSearch){const s=lineSearch.toLowerCase();data=data.filter(r=>r.skf.toLowerCase().includes(s)||r.tata.toLowerCase().includes(s)||r.vulcan.toLowerCase().includes(s)||r.inv.toLowerCase().includes(s));}
+  document.getElementById('line-count').textContent=data.length+' lines';
+  const tbody=document.querySelector('#tbl-lines tbody');
+  tbody.innerHTML='';
+  if(!data.length){tbody.innerHTML='<tr><td colspan="11" class="tbl-empty">No lines match</td></tr>';return}
+  data.forEach(r=>{
+    tbody.innerHTML+=`<tr>
+      <td style="color:var(--blue);font-family:var(--mono);font-size:.72rem">${r.skf}</td>
+      <td style="font-family:var(--mono);font-size:.72rem">${r.tata||'—'}</td>
+      <td style="font-family:var(--mono);font-size:.72rem">${r.vulcan||'—'}</td>
+      <td>${r.wh}</td>
+      <td>${r.date}</td>
+      <td>${r.qo}</td>
+      <td>${r.qs}</td>
+      <td>${r.qp>0?'<span style="color:var(--amber)">'+r.qp+'</span>':r.qp}</td>
+      <td style="color:var(--amber);font-family:var(--mono)">${r.inv||'—'}</td>
+      <td>${badge(r.st)}</td>
+      <td style="text-align:center;font-size:1rem">${r.del?'<span style="color:var(--green)">✔</span>':'<span style="color:var(--dim)">✘</span>'}</td>
+    </tr>`;
+  });
+}
+document.querySelectorAll('[data-filter-line]').forEach(btn=>{
+  btn.addEventListener('click',()=>{document.querySelectorAll('[data-filter-line]').forEach(b=>b.classList.remove('on'));btn.classList.add('on');lineFilter=btn.dataset.filterLine;renderLines();});
+});
+document.getElementById('line-search').addEventListener('input',e=>{lineSearch=e.target.value;renderLines();});
+renderLines();
+
+// ---- TABS ----
+document.querySelectorAll('.tab').forEach(tab=>{
+  tab.addEventListener('click',()=>{
+    document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+    document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
+    tab.classList.add('active');
+    document.getElementById('view-'+tab.dataset.view).classList.add('active');
+  });
+});
+
+const PASSWORDS = ['vulcan2024', 'tata2024', 'skf2024'];
+function checkLogin() {
+  const val = document.getElementById('pwd-input').value.trim();
+  if (PASSWORDS.includes(val)) {
+    document.getElementById('login-screen').style.display = 'none';
+    document.getElementById('main-content').style.display = 'block';
+    sessionStorage.setItem('auth', '1');
+  } else {
+    document.getElementById('login-err').textContent = 'Incorrect password. Try again.';
+    document.getElementById('pwd-input').value = '';
+    document.getElementById('pwd-input').focus();
+  }
+}
+document.getElementById('pwd-input').addEventListener('keydown', e => { if (e.key === 'Enter') checkLogin(); });
+if (sessionStorage.getItem('auth') === '1') {
+  document.getElementById('login-screen').style.display = 'none';
+  document.getElementById('main-content').style.display = 'block';
+}
+</script>
+</div></body>
+</html>
