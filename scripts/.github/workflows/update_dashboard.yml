@@ -1,0 +1,31 @@
+name: Update Dashboard
+
+on:
+  push:
+    paths:
+      - 'Purchasing_management_Rev_3.xlsx'
+  workflow_dispatch:
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install dependencies
+        run: pip install openpyxl
+      - name: Run update script
+        run: python scripts/update_dashboard.py
+      - name: Commit updated dashboard
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add order_dashboard.html
+          git diff --cached --quiet || git commit -m "Auto-update dashboard [$(date '+%Y-%m-%d %H:%M UTC')]"
+          git push
